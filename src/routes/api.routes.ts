@@ -323,17 +323,16 @@ apiRouter.post(
 							const fileBuffer = await readFile(absolute);
 							const form = new FormData();
 							form.append("file", new Blob([fileBuffer]), fileName);
-							const resp = await fetch(`http://127.0.0.1:${localPort}/transcribe`, {
-								method: "POST",
-								body: form as any,
-							});
+							const resp = await fetch(
+								`http://127.0.0.1:${localPort}/transcribe`,
+								{ method: "POST", body: form as any },
+							);
 							if (!resp.ok) {
 								console.warn("local transcription failed", await resp.text());
 								return;
 							}
 							const result = await resp.json();
 							segments = result.segments ?? [];
-						}
 						}
 
 						if (!segments.length) return;
