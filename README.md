@@ -126,7 +126,6 @@ bun run dev:ngrok:open
 
 Make sure `ngrok` is installed and authenticated. The scripts load `.env` (see `.env.example`) and will activate `.venv-whisper` if present.
 
-
 Open:
 
 ```text
