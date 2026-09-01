@@ -282,37 +282,83 @@ apiRouter.post(
 
 			const downloadUrl = `/api/v1/exports/${exportId}`;
 
-			// If an OpenAI API key is configured, kick off transcription now and store segments.
+			// If an OpenAI API key is configured or local whisper is enabled,
+			// kick off transcription now and store segments asynchronously.
 			const openaiKey = process.env.OPENAI_API_KEY;
-			if (openaiKey) {
+			const useLocal = process.env.USE_LOCAL_WHISPER === "true";
+			if (openaiKey || useLocal) {
 				(async () => {
 					try {
-						const fileBuffer = await readFile(absolute);
-						const form = new FormData();
-						form.append("file", new Blob([fileBuffer]), fileName);
-						form.append("model", "whisper-1");
-						form.append("response_format", "verbose_json");
-
-						const resp = await fetch(
-							"https://api.openai.com/v1/audio/transcriptions",
-							{
-								method: "POST",
-								headers: { Authorization: `Bearer ${openaiKey}` },
-								body: form as any,
-							},
-						);
-
-						if (!resp.ok) {
-							console.warn("transcription failed", await resp.text());
-							return;
-						}
-
-						const result = await resp.json();
-						const segments: Array<{
+						let segments: Array<{
 							start?: number;
 							end?: number;
 							text?: string;
-						}> = result.segments ?? [];
+						}> = [];
+
+						if (openaiKey) {
+							const fileBuffer = await readFile(absolute);
+							const form = new FormData();
+							form.append("file", new Blob([fileBuffer]), fileName);
+							form.append("model", "whisper-1");
+							form.append("response_format", "verbose_json");
+
+							const resp = await fetch(
+								"https://api.openai.com/v1/audio/transcriptions",
+								{
+									method: "POST",
+									headers: { Authorization: `Bearer ${openaiKey}` },
+									body: form as any,
+								},
+							);
+
+							if (!resp.ok) {
+								console.warn("transcription failed", await resp.text());
+								return;
+							}
+
+							const result = await resp.json();
+							segments = result.segments ?? [];
+						} else if (useLocal) {
+							const { spawn } = await import("node:child_process");
+							const python = process.env.PYTHON_PATH || "python3";
+							const modelName = process.env.LOCAL_WHISPER_MODEL || "tiny";
+							const args = [
+								"scripts/transcribe.py",
+								"--file",
+								absolute,
+								"--model",
+								modelName,
+							];
+							const child = spawn(python, args, {
+								stdio: ["ignore", "pipe", "pipe"],
+							});
+							let stdout = "";
+							let stderr = "";
+							for await (const chunk of child.stdout)
+								stdout += chunk.toString();
+							for await (const chunk of child.stderr)
+								stderr += chunk.toString();
+							const code = await new Promise<number>((resolve) =>
+								child.on("close", resolve),
+							);
+							if (code !== 0) {
+								console.warn(
+									"local transcription failed",
+									stderr.substring(0, 200),
+								);
+								return;
+							}
+							try {
+								const parsed = JSON.parse(stdout);
+								segments = Array.isArray(parsed.segments)
+									? parsed.segments
+									: [];
+							} catch (e) {
+								console.warn("failed to parse local transcription output", e);
+								return;
+							}
+						}
+
 						if (!segments.length) return;
 
 						let seq = 0;
