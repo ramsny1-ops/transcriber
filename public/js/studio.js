@@ -984,12 +984,16 @@
 					}),
 				);
 			try {
-				// Fetch segments for the session if available to drive captions
+				// Fetch segments for the session if available to drive captions.
 				if (state.sessionId && !state.playSegments) {
-					const data = await api(`/api/v1/caption-sessions/${state.sessionId}`);
-					state.playSegments = Array.isArray(data.segments)
-						? data.segments
-						: [];
+					// Poll for up to 10 seconds while the server may be transcribing.
+					const start = Date.now();
+					while (Date.now() - start < 10_000) {
+						const data = await api(`/api/v1/caption-sessions/${state.sessionId}`);
+						state.playSegments = Array.isArray(data.segments) ? data.segments : [];
+						if (state.playSegments.length) break;
+						await new Promise((r) => setTimeout(r, 750));
+					}
 				}
 
 				const audio = new Audio(src);
