@@ -1,0 +1,11 @@
+<%- include('partials/head', { title }) %>
+<body class="error-page">
+  <main class="error-shell">
+    <p class="wordmark">VOICEWAVE / STUDIO</p>
+    <p class="error-code"><%= status %></p>
+    <h1><%= title %></h1>
+    <p><%= message %></p>
+    <a class="button button-primary" href="/">Return home</a>
+  </main>
+</body>
+</html>

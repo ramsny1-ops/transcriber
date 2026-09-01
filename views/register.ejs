@@ -1,0 +1,47 @@
+<%- include('partials/head', { title }) %>
+<body class="auth-page">
+  <main class="auth-shell">
+    <section class="auth-copy" aria-labelledby="auth-title">
+      <p class="wordmark">VOICEWAVE / STUDIO</p>
+      <h1 id="auth-title">Build a caption workspace that remembers your choices.</h1>
+      <p>Your visual theme, selective keyword colors, TTS speaker preferences, and caption sessions stay attached to your account.</p>
+      <dl class="auth-facts">
+        <div><dt>Visual input</dt><dd>Microphone</dd></div>
+        <div><dt>Speech output</dt><dd>Browser voices</dd></div>
+        <div><dt>Exports</dt><dd>TXT JSON SRT VTT</dd></div>
+      </dl>
+    </section>
+
+    <section class="auth-panel" aria-label="Registration form">
+      <div>
+        <p class="eyebrow">New workspace</p>
+        <h2>Create account</h2>
+      </div>
+
+      <% if (error) { %>
+        <p class="form-error" role="alert"><%= error %></p>
+      <% } %>
+
+      <form method="post" action="/register" class="stack-form">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <label>
+          <span>Display name</span>
+          <input name="displayName" type="text" autocomplete="name" value="<%= values.displayName || '' %>" required minlength="2" maxlength="60">
+        </label>
+        <label>
+          <span>Email address</span>
+          <input name="email" type="email" autocomplete="email" inputmode="email" value="<%= values.email || '' %>" required maxlength="254">
+        </label>
+        <label>
+          <span>Password</span>
+          <input name="password" type="password" autocomplete="new-password" required minlength="10" maxlength="128" aria-describedby="password-help">
+          <small id="password-help">Use at least 10 characters. Longer passphrases are welcome.</small>
+        </label>
+        <button class="button button-primary" type="submit">Create workspace</button>
+      </form>
+
+      <p class="auth-switch">Already registered? <a href="/login">Sign in</a></p>
+    </section>
+  </main>
+</body>
+</html>

@@ -1,0 +1,244 @@
+<%- include('partials/head', { title }) %>
+<body class="studio-page" data-csrf-token="<%= csrfToken %>">
+  <canvas id="voice-canvas" class="voice-canvas" aria-hidden="true"></canvas>
+
+  <header class="studio-topbar">
+    <a class="brand-link" href="/studio">VOICEWAVE / STUDIO</a>
+    <div class="topbar-status" aria-live="polite">
+      <span class="status-dot" id="status-dot"></span>
+      <span id="status-text">Idle</span>
+      <span class="metric" id="pitch-meter">Pitch -- Hz</span>
+      <span class="metric" id="level-meter">Level 0%</span>
+    </div>
+    <nav class="account-nav" aria-label="Account">
+      <a href="/history">History</a>
+      <span><%= user.displayName %></span>
+      <form method="post" action="/logout">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button class="text-button" type="submit">Sign out</button>
+      </form>
+    </nav>
+  </header>
+
+  <main class="studio-layout">
+    <section class="capture-stage" aria-labelledby="stage-heading">
+      <div class="stage-heading-row">
+        <div>
+          <p class="eyebrow">Live caption surface</p>
+          <h1 id="stage-heading" class="sr-only">Live voice transcription</h1>
+        </div>
+        <div class="capture-state" id="capture-state">Not recording</div>
+      </div>
+
+      <div class="caption-frame" id="caption-frame" aria-live="polite" aria-atomic="true">
+        <p id="caption-text" class="caption-text">Press Start capture and speak.</p>
+        <p id="interim-text" class="interim-text"></p>
+      </div>
+
+      <div class="stage-footer">
+        <div class="session-field">
+          <label for="session-title">Session title</label>
+          <input id="session-title" type="text" maxlength="100" value="Voice capture">
+        </div>
+        <div class="capture-controls">
+          <button id="start-capture" class="button button-primary" type="button">Start capture</button>
+          <button id="stop-capture" class="button" type="button" disabled>Stop</button>
+          <button id="clear-caption" class="button" type="button">Clear screen</button>
+          <button id="play-recording" class="button" type="button" disabled>Play recording</button>
+        </div>
+      </div>
+
+      <div id="support-message" class="support-message" role="status"></div>
+    </section>
+
+    <aside class="control-dock" aria-label="Studio controls">
+      <div class="dock-head">
+        <div>
+          <p class="eyebrow">Control dock</p>
+          <h2>Shape the output</h2>
+        </div>
+        <button id="save-preferences" class="button button-small" type="button">Save settings</button>
+      </div>
+
+      <details open>
+        <summary>Background</summary>
+        <div class="settings-grid">
+          <label>
+            <span>Mode</span>
+            <select id="background-mode">
+              <option value="oscilloscope">Oscilloscope</option>
+              <option value="bands">Pitch bands</option>
+              <option value="grid">Technical grid</option>
+              <option value="solid">Solid</option>
+            </select>
+          </label>
+          <label>
+            <span>Surface</span>
+            <input id="background-color" type="color" value="#090b0c">
+          </label>
+          <label>
+            <span>Wave</span>
+            <input id="wave-color" type="color" value="#f0f2ed">
+          </label>
+          <label>
+            <span>Accent</span>
+            <input id="accent-color" type="color" value="#9ed36a">
+          </label>
+        </div>
+      </details>
+
+      <details open>
+        <summary>Captions</summary>
+        <div class="settings-grid">
+          <label>
+            <span>Font family</span>
+            <select id="caption-font">
+              <option value="system">System sans</option>
+              <option value="humanist">Humanist sans</option>
+              <option value="mono">Monospace</option>
+              <option value="serif">Serif</option>
+              <option value="rounded">Rounded sans</option>
+            </select>
+          </label>
+          <label>
+            <span>Base color</span>
+            <input id="caption-color" type="color" value="#f7f7f2">
+          </label>
+          <label class="wide-setting">
+            <span>Size <output id="caption-size-output">56px</output></span>
+            <input id="caption-size" type="range" min="28" max="120" step="1" value="56">
+          </label>
+          <label>
+            <span>Weight</span>
+            <select id="caption-weight">
+              <option value="400">Regular</option>
+              <option value="500">Medium</option>
+              <option value="600">Semibold</option>
+              <option value="700">Bold</option>
+              <option value="800">Extra bold</option>
+              <option value="900">Black</option>
+            </select>
+          </label>
+          <label>
+            <span>Alignment</span>
+            <select id="caption-align">
+              <option value="left">Left</option>
+              <option value="center">Center</option>
+              <option value="right">Right</option>
+            </select>
+          </label>
+          <label>
+            <span>Letter case</span>
+            <select id="caption-case">
+              <option value="natural">Natural</option>
+              <option value="upper">Uppercase</option>
+              <option value="lower">Lowercase</option>
+            </select>
+          </label>
+          <label class="check-setting">
+            <input id="caption-shadow" type="checkbox" checked>
+            <span>Readable shadow</span>
+          </label>
+          <label>
+            <span>Recognition locale</span>
+            <input id="recognition-lang" list="language-options" value="en-US" maxlength="20">
+            <datalist id="language-options">
+              <option value="en-US"></option>
+              <option value="en-GB"></option>
+              <option value="sw-TZ"></option>
+              <option value="fr-FR"></option>
+              <option value="de-DE"></option>
+              <option value="es-ES"></option>
+            </datalist>
+          </label>
+        </div>
+      </details>
+
+      <details open>
+        <summary>Selective word color</summary>
+        <p class="setting-note">Only matching words or phrases receive color. Everything else keeps the base caption color.</p>
+        <div id="keyword-list" class="keyword-list"></div>
+        <div class="keyword-add-row">
+          <label>
+            <span>Word or phrase</span>
+            <input id="keyword-phrase" type="text" maxlength="40" placeholder="deadline">
+          </label>
+          <label>
+            <span>Color</span>
+            <input id="keyword-color" type="color" value="#f3c969">
+          </label>
+          <button id="add-keyword" class="button" type="button">Add</button>
+        </div>
+      </details>
+
+      <details>
+        <summary>Caption file</summary>
+        <div class="file-controls">
+          <label>
+            <span>Format</span>
+            <select id="export-format">
+              <option value="txt">TXT</option>
+              <option value="json">JSON</option>
+              <option value="srt">SRT subtitles</option>
+              <option value="vtt">WebVTT</option>
+            </select>
+          </label>
+          <button id="export-caption" class="button" type="button" disabled>Save caption file</button>
+        </div>
+        <p id="export-status" class="setting-note"></p>
+      </details>
+
+      <details>
+        <summary>Text to speech</summary>
+        <div class="tts-stack">
+          <label>
+            <span>Text</span>
+            <textarea id="tts-text" rows="4" maxlength="5000" placeholder="Type text or copy the current caption here."></textarea>
+          </label>
+          <div class="settings-grid">
+            <label class="wide-setting">
+              <span>Speaker</span>
+              <select id="tts-voice"><option value="">System default</option></select>
+            </label>
+            <label>
+              <span>Language</span>
+              <input id="tts-lang" value="en-US" maxlength="20">
+            </label>
+            <label>
+              <span>Tone</span>
+              <select id="tts-tone">
+                <option value="neutral">Neutral</option>
+                <option value="calm">Calm</option>
+                <option value="deep">Deep</option>
+                <option value="bright">Bright</option>
+                <option value="urgent">Urgent</option>
+              </select>
+            </label>
+            <label class="wide-setting">
+              <span>Rate <output id="tts-rate-output">1.00</output></span>
+              <input id="tts-rate" type="range" min="0.5" max="2" step="0.05" value="1">
+            </label>
+            <label class="wide-setting">
+              <span>Pitch <output id="tts-pitch-output">1.00</output></span>
+              <input id="tts-pitch" type="range" min="0" max="2" step="0.05" value="1">
+            </label>
+            <label class="wide-setting">
+              <span>Volume <output id="tts-volume-output">1.00</output></span>
+              <input id="tts-volume" type="range" min="0" max="1" step="0.05" value="1">
+            </label>
+          </div>
+          <div class="tts-actions">
+            <button id="tts-use-caption" class="button" type="button">Use caption</button>
+            <button id="tts-play" class="button button-primary" type="button">Play</button>
+            <button id="tts-pause" class="button" type="button">Pause</button>
+            <button id="tts-stop" class="button" type="button">Stop</button>
+          </div>
+          <p id="tts-status" class="setting-note" role="status"></p>
+        </div>
+      </details>
+    </aside>
+  </main>
+
+  <script src="/js/studio.js" defer></script>
+</body>
+</html>

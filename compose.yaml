@@ -1,0 +1,21 @@
+services:
+  voicewave:
+    build: .
+    ports:
+      # Host port 9388 -> container port 8080. They are deliberately different.
+      - "9388:8080"
+    environment:
+      NODE_ENV: production
+      SERVER_HOST: 0.0.0.0
+      SERVER_PORT: 8080
+      ALLOWED_ORIGINS_PRODUCTION: ${ALLOWED_ORIGINS_PRODUCTION:?Set ALLOWED_ORIGINS_PRODUCTION in .env}
+      DATABASE_PATH: /app/data/voice-wave.sqlite
+      EXPORT_DIRECTORY: /app/data/exports
+      APP_SECRET: ${APP_SECRET:?Set APP_SECRET in .env}
+      TRUST_PROXY: ${TRUST_PROXY:-true}
+    volumes:
+      - voicewave_data:/app/data
+    restart: unless-stopped
+
+volumes:
+  voicewave_data:

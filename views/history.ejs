@@ -1,0 +1,57 @@
+<%- include('partials/head', { title }) %>
+<body class="history-page">
+  <header class="simple-topbar">
+    <a class="brand-link" href="/studio">VOICEWAVE / STUDIO</a>
+    <nav class="account-nav">
+      <a href="/studio">Studio</a>
+      <span><%= user.displayName %></span>
+      <form method="post" action="/logout">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <button class="text-button" type="submit">Sign out</button>
+      </form>
+    </nav>
+  </header>
+
+  <main class="history-shell">
+    <div class="history-heading">
+      <div>
+        <p class="eyebrow">Saved in SQLite</p>
+        <h1>Caption history</h1>
+      </div>
+      <a class="button button-primary" href="/studio">New capture</a>
+    </div>
+
+    <% if (!sessions.length) { %>
+      <section class="empty-state">
+        <h2>No captures yet</h2>
+        <p>Your completed caption sessions will appear here.</p>
+      </section>
+    <% } else { %>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Language</th>
+              <th>Segments</th>
+              <th>Status</th>
+              <th>Started</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% sessions.forEach((session) => { %>
+              <tr>
+                <td><strong><%= session.title %></strong><small><%= session.id.slice(0, 8) %></small></td>
+                <td><%= session.language %></td>
+                <td><%= session.segment_count %></td>
+                <td><%= session.status %></td>
+                <td><time datetime="<%= session.started_at %>"><%= new Date(session.started_at).toLocaleString() %></time></td>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    <% } %>
+  </main>
+</body>
+</html>

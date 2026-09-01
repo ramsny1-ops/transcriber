@@ -1,0 +1,21 @@
+FROM oven/bun:1 AS base
+WORKDIR /app
+
+COPY package.json ./
+RUN bun install --production --frozen-lockfile=false
+
+COPY src ./src
+COPY views ./views
+COPY public ./public
+RUN mkdir -p /app/data/exports
+
+ENV NODE_ENV=production
+ENV SERVER_HOST=0.0.0.0
+ENV SERVER_PORT=8080
+ENV DATABASE_PATH=/app/data/voice-wave.sqlite
+ENV EXPORT_DIRECTORY=/app/data/exports
+
+EXPOSE 8080
+VOLUME ["/app/data"]
+HEALTHCHECK --interval=30s --timeout=5s --retries=3 CMD bun -e "fetch('http://127.0.0.1:8080/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+CMD ["bun", "src/server.ts"]

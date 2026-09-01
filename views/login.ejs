@@ -1,0 +1,42 @@
+<%- include('partials/head', { title }) %>
+<body class="auth-page">
+  <main class="auth-shell">
+    <section class="auth-copy" aria-labelledby="auth-title">
+      <p class="wordmark">VOICEWAVE / STUDIO</p>
+      <h1 id="auth-title">Return to your caption workspace.</h1>
+      <p>Live voice-reactive visuals, selective word color, saved transcripts, file exports, and browser speech playback in one focused console.</p>
+      <dl class="auth-facts">
+        <div><dt>Storage</dt><dd>SQLite</dd></div>
+        <div><dt>Passwords</dt><dd>Argon2id</dd></div>
+        <div><dt>Captions</dt><dd>Session scoped</dd></div>
+      </dl>
+    </section>
+
+    <section class="auth-panel" aria-label="Sign in form">
+      <div>
+        <p class="eyebrow">Account access</p>
+        <h2>Sign in</h2>
+      </div>
+
+      <% if (error) { %>
+        <p class="form-error" role="alert"><%= error %></p>
+      <% } %>
+
+      <form method="post" action="/login" class="stack-form">
+        <input type="hidden" name="_csrf" value="<%= csrf %>">
+        <label>
+          <span>Email address</span>
+          <input name="email" type="email" autocomplete="email" inputmode="email" value="<%= email %>" required maxlength="254">
+        </label>
+        <label>
+          <span>Password</span>
+          <input name="password" type="password" autocomplete="current-password" required minlength="10" maxlength="128">
+        </label>
+        <button class="button button-primary" type="submit">Sign in</button>
+      </form>
+
+      <p class="auth-switch">No account yet? <a href="/register">Create one</a></p>
+    </section>
+  </main>
+</body>
+</html>
