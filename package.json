@@ -8,6 +8,7 @@
     "dev": "bun --watch src/server.ts",
     "dev:venv": "bash scripts/run_dev_venv.sh",
     "dev:ngrok": "bash scripts/run_with_ngrok.sh",
+    "dev:ngrok:open": "bash scripts/run_with_ngrok_open.sh",
     "start": "bun src/server.ts",
     "start:venv": "bash scripts/run_start_venv.sh",
     "typecheck": "tsc --noEmit",
