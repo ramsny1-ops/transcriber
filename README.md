@@ -108,6 +108,25 @@ Or use the guided local setup:
 bash scripts/setup.sh
 ```
 
+Run with ngrok (expose to the internet)
+
+If you want to expose the local dev server via ngrok, use the provided `bun` scripts. This repository uses Bun for scripts — run them with `bun run`.
+
+Start a tunnel (no browser open):
+
+```bash
+bun run dev:ngrok
+```
+
+Start and automatically open the public ngrok URL in your browser (copies URL to clipboard when possible):
+
+```bash
+bun run dev:ngrok:open
+```
+
+Make sure `ngrok` is installed and authenticated. The scripts load `.env` (see `.env.example`) and will activate `.venv-whisper` if present.
+
+
 Open:
 
 ```text
