@@ -60,6 +60,8 @@
 		ttsStop: $("#tts-stop"),
 		ttsStatus: $("#tts-status"),
 		playRecording: $("#play-recording"),
+		downloadRecording: $("#download-recording"),
+		downloadCaptions: $("#download-captions"),
 	};
 
 	const defaults = {
@@ -105,6 +107,8 @@
 		voices: [],
 		mediaRecorder: null,
 		recordedBlobs: null,
+		recordingDownloadUrl: null,
+		playSegments: null,
 	};
 
 	async function api(path, options = {}) {
@@ -727,6 +731,7 @@
 			state.recognition.start();
 			els.stopCapture.disabled = false;
 			els.exportCaption.disabled = false;
+			if (els.downloadCaptions) els.downloadCaptions.disabled = false;
 		} catch (error) {
 			setSupport(error.message, true);
 			setStatus("Idle", false);
@@ -760,18 +765,20 @@
 				state.sessionId
 			) {
 				const blob = new Blob(state.recordedBlobs, { type: "audio/webm" });
-				try {
-					const headers = { "content-type": blob.type };
-					await api(`/api/v1/caption-sessions/${state.sessionId}/recording`, {
+				const uploaded = await api(
+					`/api/v1/caption-sessions/${state.sessionId}/recording`,
+					{
 						method: "POST",
 						body: blob,
-						headers,
-					});
-					setSupport("Recording uploaded.");
-					if (els.playRecording) els.playRecording.disabled = false;
-				} catch (err) {
-					setSupport(`Recording upload failed: ${err.message}`, true);
+						headers: { "content-type": blob.type },
+					},
+				);
+				setSupport("Recording uploaded.");
+				if (uploaded?.downloadUrl) {
+					state.recordingDownloadUrl = uploaded.downloadUrl;
+					if (els.downloadRecording) els.downloadRecording.disabled = false;
 				}
+				if (els.playRecording) els.playRecording.disabled = false;
 			}
 		} catch (e) {
 			console.warn("recording upload error", e);
@@ -968,16 +975,81 @@
 		});
 		els.playRecording.addEventListener("click", async () => {
 			if (!state.recordedBlobs || !state.recordedBlobs.length) return;
-			const blob = new Blob(state.recordedBlobs, {
-				type: state.recordedBlobs[0].type || "audio/webm",
-			});
-			const url = URL.createObjectURL(blob);
-			const audio = new Audio(url);
-			audio.onended = () => URL.revokeObjectURL(url);
-			audio
-				.play()
-				.catch((err) => setSupport(`Playback failed: ${err.message}`, true));
+			// Prefer the uploaded/download URL if available so server-hosted audio is used
+			const src =
+				state.recordingDownloadUrl ||
+				URL.createObjectURL(
+					new Blob(state.recordedBlobs, {
+						type: state.recordedBlobs[0].type || "audio/webm",
+					}),
+				);
+			try {
+				// Fetch segments for the session if available to drive captions
+				if (state.sessionId && !state.playSegments) {
+					const data = await api(`/api/v1/caption-sessions/${state.sessionId}`);
+					state.playSegments = Array.isArray(data.segments)
+						? data.segments
+						: [];
+				}
+
+				const audio = new Audio(src);
+				audio.crossOrigin = "use-credentials";
+				audio.addEventListener("timeupdate", () => {
+					const nowMs = Math.round(audio.currentTime * 1000);
+					if (state.playSegments && state.playSegments.length) {
+						const seg = state.playSegments.find(
+							(s) =>
+								(typeof s.startMs === "number" ? s.startMs : 0) <= nowMs &&
+								(typeof s.endMs === "number" ? s.endMs : Infinity) >= nowMs,
+						);
+						if (seg) {
+							els.captionText.textContent = seg.text;
+							els.interimText.textContent = "";
+						}
+					}
+				});
+				audio
+					.play()
+					.catch((err) => setSupport(`Playback failed: ${err.message}`, true));
+			} catch (err) {
+				setSupport(`Playback failed: ${err.message}`, true);
+			}
 		});
+
+		if (els.downloadRecording)
+			els.downloadRecording.addEventListener("click", () => {
+				if (!state.recordingDownloadUrl)
+					return setSupport("No uploaded recording available.", true);
+				const a = document.createElement("a");
+				a.href = state.recordingDownloadUrl;
+				a.download = "";
+				document.body.append(a);
+				a.click();
+				a.remove();
+			});
+
+		if (els.downloadCaptions)
+			els.downloadCaptions.addEventListener("click", async () => {
+				if (!state.sessionId)
+					return setSupport("No session available to export.", true);
+				try {
+					const result = await api(
+						`/api/v1/caption-sessions/${state.sessionId}/export`,
+						{
+							method: "POST",
+							body: JSON.stringify({ format: els.exportFormat.value }),
+						},
+					);
+					const link = document.createElement("a");
+					link.href = result.downloadUrl;
+					link.download = "";
+					document.body.append(link);
+					link.click();
+					link.remove();
+				} catch (err) {
+					setSupport(`Caption export failed: ${err.message}`, true);
+				}
+			});
 		els.exportCaption.addEventListener("click", exportCaptionFile);
 
 		els.ttsUseCaption.addEventListener("click", () => {
