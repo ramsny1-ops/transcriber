@@ -41,28 +41,9 @@ URL=""
 for i in $(seq 1 30); do
   if command -v curl >/dev/null 2>&1; then
     api=$(curl -s http://127.0.0.1:4040/api/tunnels || true)
-    if [ -n "$api" ] && [ "$api" != "null" ]; then
-      URL=$(printf '%s' "$api" | python3 - <<'PY'
-  import sys, json
-  try:
-    j = json.load(sys.stdin)
-    # try tunnels array
-    if isinstance(j, dict) and 'tunnels' in j and isinstance(j['tunnels'], list) and j['tunnels']:
-      for t in j['tunnels']:
-        if 'public_url' in t:
-          print(t['public_url'])
-          raise SystemExit(0)
-    # try simple dict with url
-    if isinstance(j, dict):
-      for k in ('public_url', 'url', 'https_url', 'forwarded_url'):
-        if k in j:
-          print(j[k])
-          raise SystemExit(0)
-  except Exception:
-    pass
-sys.exit(1)
-PY
-) || true
+      if [ -n "$api" ] && [ "$api" != "null" ]; then
+        URL=$(printf '%s' "$api" | python3 "${PWD%/}/scripts/parse_ngrok.py") || true
+      fi
     fi
   fi
   if [ -n "$URL" ]; then break; fi
