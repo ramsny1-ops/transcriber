@@ -60,9 +60,9 @@ for i in $(seq 1 30); do
           raise SystemExit(0)
   except Exception:
     pass
-  sys.exit(1)
-  PY
-  ) || true
+sys.exit(1)
+PY
+ ) || true
     fi
   fi
   if [ -n "$URL" ]; then break; fi
