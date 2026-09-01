@@ -342,7 +342,7 @@
 				els.savePreferences.textContent = previous;
 			}, 900);
 		}
-				if (els.playRecording) els.playRecording.disabled = false;
+		if (els.playRecording) els.playRecording.disabled = false;
 	}
 
 	function addKeywordRule() {
