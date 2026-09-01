@@ -69,6 +69,8 @@ fi
 
 echo "Installing extras (ffmpeg-python, typing)"
 pip install --upgrade ffmpeg-python
+echo "Installing Flask for local HTTP server"
+pip install --upgrade flask
 
 echo "Local Whisper setup complete. Activate with: source ${VENV_DIR}/bin/activate"
 echo "Example: source ${VENV_DIR}/bin/activate && python scripts/transcribe.py --file path/to/file.webm --model ${MODEL}"
