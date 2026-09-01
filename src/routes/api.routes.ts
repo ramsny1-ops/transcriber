@@ -319,44 +319,21 @@ apiRouter.post(
 							const result = await resp.json();
 							segments = result.segments ?? [];
 						} else if (useLocal) {
-							const { spawn } = await import("node:child_process");
-							const python = process.env.PYTHON_PATH || "python3";
-							const modelName = process.env.LOCAL_WHISPER_MODEL || "tiny";
-							const args = [
-								"scripts/transcribe.py",
-								"--file",
-								absolute,
-								"--model",
-								modelName,
-							];
-							const child = spawn(python, args, {
-								stdio: ["ignore", "pipe", "pipe"],
+							const localPort = process.env.LOCAL_WHISPER_PORT || "5100";
+							const fileBuffer = await readFile(absolute);
+							const form = new FormData();
+							form.append("file", new Blob([fileBuffer]), fileName);
+							const resp = await fetch(`http://127.0.0.1:${localPort}/transcribe`, {
+								method: "POST",
+								body: form as any,
 							});
-							let stdout = "";
-							let stderr = "";
-							for await (const chunk of child.stdout)
-								stdout += chunk.toString();
-							for await (const chunk of child.stderr)
-								stderr += chunk.toString();
-							const code = await new Promise<number>((resolve) =>
-								child.on("close", resolve),
-							);
-							if (code !== 0) {
-								console.warn(
-									"local transcription failed",
-									stderr.substring(0, 200),
-								);
+							if (!resp.ok) {
+								console.warn("local transcription failed", await resp.text());
 								return;
 							}
-							try {
-								const parsed = JSON.parse(stdout);
-								segments = Array.isArray(parsed.segments)
-									? parsed.segments
-									: [];
-							} catch (e) {
-								console.warn("failed to parse local transcription output", e);
-								return;
-							}
+							const result = await resp.json();
+							segments = result.segments ?? [];
+						}
 						}
 
 						if (!segments.length) return;

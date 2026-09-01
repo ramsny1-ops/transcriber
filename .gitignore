@@ -13,3 +13,4 @@ data/exports/*
 .DS_Store
 *.log
 coverage/
+.venv-whisper/
