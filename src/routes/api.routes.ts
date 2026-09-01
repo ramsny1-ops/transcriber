@@ -280,9 +280,77 @@ apiRouter.post(
 				new Date().toISOString(),
 			);
 
-			return res
-				.status(201)
-				.json({ ok: true, downloadUrl: `/api/v1/exports/${exportId}` });
+			const downloadUrl = `/api/v1/exports/${exportId}`;
+
+			// If an OpenAI API key is configured, kick off transcription now and store segments.
+			const openaiKey = process.env.OPENAI_API_KEY;
+			if (openaiKey) {
+				(async () => {
+					try {
+						const fileBuffer = await readFile(absolute);
+						const form = new FormData();
+						form.append("file", new Blob([fileBuffer]), fileName);
+						form.append("model", "whisper-1");
+						form.append("response_format", "verbose_json");
+
+						const resp = await fetch(
+							"https://api.openai.com/v1/audio/transcriptions",
+							{
+								method: "POST",
+								headers: { Authorization: `Bearer ${openaiKey}` },
+								body: form as any,
+							},
+						);
+
+						if (!resp.ok) {
+							console.warn("transcription failed", await resp.text());
+							return;
+						}
+
+						const result = await resp.json();
+						const segments: Array<{
+							start?: number;
+							end?: number;
+							text?: string;
+						}> = result.segments ?? [];
+						if (!segments.length) return;
+
+						let seq = 0;
+						const now = new Date().toISOString();
+						for (const s of segments) {
+							const startMs =
+								typeof s.start === "number" ? Math.round(s.start * 1000) : null;
+							const endMs =
+								typeof s.end === "number" ? Math.round(s.end * 1000) : null;
+							db.query(
+								`
+			  INSERT INTO caption_segments (id, session_id, user_id, sequence, text, confidence, start_ms, end_ms, created_at)
+			  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+			  ON CONFLICT(session_id, sequence) DO UPDATE SET
+				text = excluded.text,
+				confidence = excluded.confidence,
+				start_ms = excluded.start_ms,
+				end_ms = excluded.end_ms
+			`,
+							).run(
+								randomId(),
+								req.params.id,
+								req.auth!.user.id,
+								seq++,
+								(s.text ?? "").trim(),
+								null,
+								startMs,
+								endMs,
+								now,
+							);
+						}
+					} catch (err) {
+						console.warn("automatic transcription error", err);
+					}
+				})();
+			}
+
+			return res.status(201).json({ ok: true, downloadUrl });
 		} catch (error) {
 			next(error);
 		}
