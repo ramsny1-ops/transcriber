@@ -60,22 +60,17 @@ if [ -z "$URL" ]; then
 fi
 
 echo "Public URL: $URL"
-# copy to clipboard if possible
+# copy to clipboard if possible (simpler, avoid complex quoting)
 if command -v wl-copy >/dev/null 2>&1; then
-  printf '%s' "$URL" | wl-copy
-  echo "(copied to clipboard via wl-copy)"
+  printf '%s' "$URL" | wl-copy && echo "(copied via wl-copy)"
 elif command -v xclip >/dev/null 2>&1; then
-  printf '%s' "$URL" | xclip -selection clipboard
-  echo "(copied to clipboard via xclip)"
+  printf '%s' "$URL" | xclip -selection clipboard && echo "(copied via xclip)"
 elif command -v pbcopy >/dev/null 2>&1; then
-  printf '%s' "$URL" | pbcopy
-  echo "(copied to clipboard via pbcopy)"
+  printf '%s' "$URL" | pbcopy && echo "(copied via pbcopy)"
 fi
 
-# open in default browser
-if command -v xdg-open >/dev/null 2>&1; then
-  xdg-open "$URL" || true
-fi
+# open in default browser (best-effort)
+xdg-open "$URL" >/dev/null 2>&1 || true
 
 # tail ngrok log so user sees activity, and wait for ngrok to exit
 tail -f "${NGROK_LOG}" &
