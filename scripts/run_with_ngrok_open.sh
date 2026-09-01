@@ -47,7 +47,7 @@ for i in $(seq 1 30); do
     fi
   if [ -n "$URL" ]; then break; fi
   # Fallback: scan ngrok log for url
-  URL=$(grep -oE 'https?://[^"+]+' "${NGROK_LOG}" | tail -n 1 || true)
+  URL=$(grep -oE 'https?://[^" ]+' "${NGROK_LOG}" | tail -n 1 || true)
   if [ -n "$URL" ]; then break; fi
   sleep 0.5
 done
