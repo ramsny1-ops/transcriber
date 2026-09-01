@@ -62,7 +62,7 @@ for i in $(seq 1 30); do
     pass
 sys.exit(1)
 PY
- ) || true
+) || true
     fi
   fi
   if [ -n "$URL" ]; then break; fi
