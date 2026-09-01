@@ -39,13 +39,12 @@ NGROK_PID=$!
 # Poll local ngrok API (v2/v3 compatible) for the public url
 URL=""
 for i in $(seq 1 30); do
-  if command -v curl >/dev/null 2>&1; then
-    api=$(curl -s http://127.0.0.1:4040/api/tunnels || true)
+    if command -v curl >/dev/null 2>&1; then
+      api=$(curl -s http://127.0.0.1:4040/api/tunnels || true)
       if [ -n "$api" ] && [ "$api" != "null" ]; then
         URL=$(printf '%s' "$api" | python3 "${PWD%/}/scripts/parse_ngrok.py") || true
       fi
     fi
-  fi
   if [ -n "$URL" ]; then break; fi
   # Fallback: scan ngrok log for url
   URL=$(grep -oE "https?://[^"]+" "${NGROK_LOG}" | tail -n 1 || true)
