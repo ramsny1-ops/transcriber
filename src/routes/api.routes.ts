@@ -525,40 +525,57 @@ apiRouter.get("/exports/:id", async (req, res, next) => {
 });
 
 // Manually trigger transcription for the latest uploaded recording for a session.
-apiRouter.post("/caption-sessions/:id/transcribe", requireCsrf, async (req, res, next) => {
-	try {
-		const row = db.query<{ relative_path: string } , [string, string]>(
-			"SELECT relative_path FROM caption_exports WHERE session_id = ? AND user_id = ? AND format = 'webm' ORDER BY created_at DESC LIMIT 1"
-		).get(req.params.id, req.auth!.user.id);
-		if (!row) return res.status(404).json({ error: "recording_not_found" });
+apiRouter.post(
+	"/caption-sessions/:id/transcribe",
+	requireCsrf,
+	async (req, res, next) => {
+		try {
+			const row = db
+				.query<
+					{ relative_path: string },
+					[string, string]
+				>("SELECT relative_path FROM caption_exports WHERE session_id = ? AND user_id = ? AND format = 'webm' ORDER BY created_at DESC LIMIT 1")
+				.get(req.params.id, req.auth!.user.id);
+			if (!row) return res.status(404).json({ error: "recording_not_found" });
 
-		const absolute = resolve(config.exportDirectory, row.relative_path);
-		const openaiKey = process.env.OPENAI_API_KEY;
-		if (!openaiKey) return res.status(400).json({ error: "transcription_not_configured" });
+			const absolute = resolve(config.exportDirectory, row.relative_path);
+			const openaiKey = process.env.OPENAI_API_KEY;
+			if (!openaiKey)
+				return res.status(400).json({ error: "transcription_not_configured" });
 
-		const fileBuffer = await readFile(absolute);
-		const form = new FormData();
-		form.append("file", new Blob([fileBuffer]), "recording.webm");
-		form.append("model", "whisper-1");
-		form.append("response_format", "verbose_json");
+			const fileBuffer = await readFile(absolute);
+			const form = new FormData();
+			form.append("file", new Blob([fileBuffer]), "recording.webm");
+			form.append("model", "whisper-1");
+			form.append("response_format", "verbose_json");
 
-		const resp = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-			method: "POST",
-			headers: { Authorization: `Bearer ${openaiKey}` },
-			body: form as any,
-		});
+			const resp = await fetch(
+				"https://api.openai.com/v1/audio/transcriptions",
+				{
+					method: "POST",
+					headers: { Authorization: `Bearer ${openaiKey}` },
+					body: form as any,
+				},
+			);
 
-		if (!resp.ok) return res.status(502).json({ error: "transcription_failed", detail: await resp.text() });
-		const result = await resp.json();
-		const segments: Array<{ start?: number; end?: number; text?: string }> = result.segments ?? [];
-		if (!segments.length) return res.status(204).end();
+			if (!resp.ok)
+				return res
+					.status(502)
+					.json({ error: "transcription_failed", detail: await resp.text() });
+			const result = await resp.json();
+			const segments: Array<{ start?: number; end?: number; text?: string }> =
+				result.segments ?? [];
+			if (!segments.length) return res.status(204).end();
 
-		let seq = 0;
-		const now = new Date().toISOString();
-		for (const s of segments) {
-			const startMs = typeof s.start === "number" ? Math.round(s.start * 1000) : null;
-			const endMs = typeof s.end === "number" ? Math.round(s.end * 1000) : null;
-			db.query(`
+			let seq = 0;
+			const now = new Date().toISOString();
+			for (const s of segments) {
+				const startMs =
+					typeof s.start === "number" ? Math.round(s.start * 1000) : null;
+				const endMs =
+					typeof s.end === "number" ? Math.round(s.end * 1000) : null;
+				db.query(
+					`
 				INSERT INTO caption_segments (id, session_id, user_id, sequence, text, confidence, start_ms, end_ms, created_at)
 				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 				ON CONFLICT(session_id, sequence) DO UPDATE SET
@@ -566,11 +583,23 @@ apiRouter.post("/caption-sessions/:id/transcribe", requireCsrf, async (req, res,
 					confidence = excluded.confidence,
 					start_ms = excluded.start_ms,
 					end_ms = excluded.end_ms
-			`).run(randomId(), req.params.id, req.auth!.user.id, seq++, (s.text ?? "").trim(), null, startMs, endMs, now);
-		}
+			`,
+				).run(
+					randomId(),
+					req.params.id,
+					req.auth!.user.id,
+					seq++,
+					(s.text ?? "").trim(),
+					null,
+					startMs,
+					endMs,
+					now,
+				);
+			}
 
-		return res.json({ ok: true, segments: segments.length });
-	} catch (err) {
-		next(err);
-	}
-});
+			return res.json({ ok: true, segments: segments.length });
+		} catch (err) {
+			next(err);
+		}
+	},
+);
